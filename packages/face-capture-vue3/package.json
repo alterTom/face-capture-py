@@ -1,0 +1,29 @@
+{
+  "name": "face-capture-vue3",
+  "version": "0.1.0",
+  "description": "Vue 3 component for the Face Capture desktop service",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./style.css": "./dist/style.css"
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "vite build",
+    "prepack": "npm run build"
+  },
+  "peerDependencies": {
+    "vue": "^3.3.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.0",
+    "vite": "^7.0.0",
+    "vue": "^3.5.0"
+  }
+}

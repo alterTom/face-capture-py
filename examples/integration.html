@@ -1,0 +1,12 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>业务网站接入示例</title>
+<style>body{font:16px/1.8 sans-serif;max-width:760px;margin:40px auto;padding:20px}button{padding:10px 20px}img{max-width:320px;background:#eee;margin:10px}#preview{transform:scaleX(-1)}</style>
+<h1>业务网站接入示例</h1><p>请先安装并启动本地程序。点击开始后，在浏览器授权页确认本次采集，再返回本页面。</p>
+<button id="start">开始采集</button><button id="cancel" disabled>取消</button> <a href="facecapture://start">启动本地程序</a><p id="status" role="status">等待开始</p><img id="preview" alt="实时预览" hidden><img id="photo" alt="抓拍照片" hidden>
+<script src="../web/capture-sdk.js"></script><script>
+const client=new FaceCaptureClient();const $=id=>document.getElementById(id);let live,result;
+$('start').onclick=async()=>{try{$('start').disabled=true;$('cancel').disabled=false;$('photo').hidden=true;if(result)URL.revokeObjectURL(result);const blob=await client.capture({onStatus:s=>$('status').textContent=s.prompt,onPreview:b=>{if(live)URL.revokeObjectURL(live);live=URL.createObjectURL(b);$('preview').src=live;$('preview').hidden=false;}});result=URL.createObjectURL(blob);$('photo').src=result;$('photo').hidden=false;$('status').textContent='采集成功，照片已返回本业务页面';
+// 上传：const form = new FormData(); form.append('photo', blob, 'face.jpg');
+// await fetch('/your-business-upload-endpoint', {method:'POST', body:form});
+}catch(e){$('status').textContent=e.name==='AbortError'?'已取消':e.message;}finally{$('start').disabled=false;$('cancel').disabled=true;$('preview').hidden=true;if(live)URL.revokeObjectURL(live);}};
+$('cancel').onclick=()=>client.cancel();window.addEventListener('pagehide',()=>client.cancel());
+</script></html>

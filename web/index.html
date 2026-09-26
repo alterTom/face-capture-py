@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>人脸采集 · 本地服务</title>
+  <style>
+    :root{font-family:"Segoe UI","Microsoft YaHei",sans-serif;color:#24354b;background:#f3f6fa;font-size:15px}*{box-sizing:border-box}
+    body{margin:0}main{max-width:1120px;margin:auto;padding:36px 24px}header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:28px}
+    h1{font-size:25px;margin:0 0 8px}p{line-height:1.7;color:#62748a;margin:8px 0}.badge{border:1px solid #d5dfeb;border-radius:24px;padding:8px 14px;background:white;white-space:nowrap}
+    .grid{display:grid;grid-template-columns:1.45fr 1fr;gap:24px}.panel{background:#fff;border:1px solid #dce4ee;border-radius:16px;padding:24px}h2{font-size:17px;margin:0 0 18px}
+    .view{aspect-ratio:4/3;background:#172538;border-radius:12px;display:grid;place-items:center;position:relative;overflow:hidden}.view img{width:100%;height:100%;object-fit:contain}.view #preview{transform:scaleX(-1)}
+    .placeholder{color:#b1c0d2;text-align:center;padding:20px}.placeholder strong{display:block;font-size:18px;font-weight:500;margin-bottom:10px}
+    [hidden]{display:none!important}.guide{position:absolute;inset:12% 27%;border:2px dashed #d7e4f088;border-radius:48%;pointer-events:none}
+    #prompt{font-size:18px;font-weight:600;color:#22374e;min-height:28px;margin:20px 0 8px}.steps{display:flex;gap:8px;flex-wrap:wrap;min-height:32px;margin:12px 0}.step{font-size:13px;padding:6px 10px;background:#edf2f7;border-radius:6px}.step.done{background:#e1f4eb;color:#16634a}.step.current{background:#e3edff;color:#225bd1}
+    .controls{display:flex;align-items:end;gap:12px;flex-wrap:wrap;margin-top:22px}label{font-size:13px;display:grid;gap:7px;color:#62748a}select{max-width:100%;border:1px solid #cbd6e4;border-radius:7px;padding:9px;background:white;color:#24354b}
+    button,.button{border:0;border-radius:8px;padding:11px 18px;background:#2463df;color:#fff;cursor:pointer;font:inherit;text-decoration:none;display:inline-block}button:disabled{opacity:.5;cursor:default}.secondary{background:#eaf0f7;color:#334963}
+    .links{display:flex;gap:18px;margin-top:18px;font-size:13px}a{color:#245cc5}small{display:block;color:#718096;line-height:1.7;margin-top:16px}.error{color:#b32636!important}.result-note{min-height:48px;font-size:13px}footer{font-size:12px;color:#7b899a;margin-top:26px;line-height:1.8}
+    @media(max-width:760px){main{padding:22px 16px}.grid{grid-template-columns:1fr}header{align-items:start}.badge{font-size:12px}.panel{padding:18px}}
+  </style>
+</head>
+<body><main>
+  <header><div><h1>人脸采集</h1><p>在浏览器完成动作检测，自动抓拍清晰正脸照片。</p></div><span class="badge" id="health">正在连接服务</span></header>
+  <div class="grid">
+    <section class="panel"><h2>采集画面</h2>
+      <div class="view"><div id="empty" class="placeholder"><strong>准备好后，开始采集</strong>请正对摄像头，保持光线均匀</div><img id="preview" alt="摄像头实时预览" hidden><div class="guide" id="guide" hidden></div></div>
+      <div id="prompt" role="status" aria-live="polite">等待开始</div><div class="steps" id="steps"></div>
+      <div class="controls">
+        <label>检测动作<select id="actions"><option value="random">眨眼 + 随机转头</option><option value="blink">仅眨眼</option><option value="mouth">仅张嘴</option><option value="turn_left">仅向左转头</option><option value="turn_right">仅向右转头</option><option value="all">眨眼 + 张嘴 + 左右转头</option></select></label>
+        <label>摄像头<select id="camera"><option value="0">摄像头 0（默认）</option><option value="1">摄像头 1</option><option value="2">摄像头 2</option><option value="3">摄像头 3</option></select></label>
+        <button id="start">开始采集</button><button id="cancel" class="secondary" disabled>取消</button>
+      </div>
+      <small>点击开始即同意本次摄像头采集。任务结束后自动关闭摄像头；照片不会由本程序自动上传。</small>
+      <div class="links"><a href="facecapture://start">启动本地服务</a><a href="/" id="recheck">重新检测连接</a></div>
+    </section>
+    <section class="panel"><h2>抓拍结果</h2><div class="view"><div id="result-empty" class="placeholder">动作通过后，照片将在这里显示</div><img id="photo" alt="采集成功的人脸照片" hidden></div>
+      <p class="result-note" id="result-note">完成动作后请恢复正脸，睁眼并闭嘴，画面符合条件即自动抓拍。</p><a class="button" id="download" download="face-capture.jpg" hidden>下载照片</a>
+      <small>预览采用镜像显示；抓拍照片保留摄像头原始方向。</small>
+    </section>
+  </div>
+  <footer>本地人脸采集 v0.1.1 · 动作检测用于辅助采集，不等同于具备防回放能力的身份核验。<br>后台仅记录运行日志，照片在内存中短时保留；取消或离开页面后会话自动清理。</footer>
+</main><script src="/capture-sdk.js"></script><script>
+  const client = new FaceCaptureClient(location.origin);
+  const $ = id => document.getElementById(id);
+  const labels = {blink:'眨眼',mouth:'张嘴',turn_left:'向左转头',turn_right:'向右转头'};
+  let previewUrl, photoUrl;
+  async function health(){try{const h=await client.health();$('health').textContent=h.modelReady?'服务已连接':'模型缺失';}catch(e){$('health').textContent='服务未连接';}}
+  function showSteps(state){$('steps').replaceChildren(...state.actions.map((a,i)=>{const el=document.createElement('span');el.className='step'+(i<state.completedActions.length?' done':i===state.completedActions.length?' current':'');el.textContent=(i<state.completedActions.length?'✓ ':'')+labels[a];return el;}));}
+  $('start').onclick=async()=>{
+    $('start').disabled=true;$('cancel').disabled=false;$('actions').disabled=true;$('camera').disabled=true;
+    $('prompt').classList.remove('error');$('prompt').textContent='正在打开摄像头…';$('steps').replaceChildren();
+    $('photo').hidden=true;$('download').hidden=true;$('result-empty').hidden=false;$('result-note').textContent='正在采集，请按提示完成动作。';
+    if(photoUrl){URL.revokeObjectURL(photoUrl);photoUrl=null;}
+    const selected=$('actions').value;
+    const actions=selected==='random'?undefined:selected==='all'?['blink','mouth','turn_left','turn_right']:[selected];
+    try{
+      const photo=await client.capture({actions,cameraIndex:Number($('camera').value),onStatus:state=>{$('prompt').textContent=state.prompt;showSteps(state);},onPreview:blob=>{const old=previewUrl;previewUrl=URL.createObjectURL(blob);$('preview').src=previewUrl;$('preview').hidden=false;$('empty').hidden=true;$('guide').hidden=false;if(old)URL.revokeObjectURL(old);}});
+      photoUrl=URL.createObjectURL(photo);$('photo').src=photoUrl;$('photo').hidden=false;$('result-empty').hidden=true;$('download').href=photoUrl;$('download').hidden=false;
+      $('prompt').textContent='采集成功';$('result-note').textContent=`JPEG 照片 · ${(photo.size/1024).toFixed(0)} KB · 可直接下载或交给业务页面上传`;
+    }catch(e){$('prompt').textContent=e.name==='AbortError'?'采集已取消':e.message;$('prompt').classList.add('error');$('result-note').textContent='本次未生成照片，请调整后重试。';}
+    finally{$('start').disabled=false;$('cancel').disabled=true;$('actions').disabled=false;$('camera').disabled=false;$('preview').hidden=true;$('guide').hidden=true;$('empty').hidden=false;if(previewUrl){URL.revokeObjectURL(previewUrl);previewUrl=null;}}
+  };
+  $('cancel').onclick=()=>client.cancel();$('recheck').onclick=e=>{e.preventDefault();health();};
+  window.addEventListener('pagehide',()=>client.cancel());health();
+</script></body></html>

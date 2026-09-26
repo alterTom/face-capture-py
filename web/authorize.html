@@ -1,0 +1,11 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>确认本次人脸采集</title>
+<style>body{font:16px/1.8 "Segoe UI","Microsoft YaHei",sans-serif;background:#f3f6fa;color:#24354b;margin:0;padding:60px 20px}main{max-width:520px;background:white;border:1px solid #dce4ee;border-radius:16px;padding:32px;margin:auto}h1{font-size:24px}button{font:inherit;border:0;border-radius:8px;padding:10px 20px;cursor:pointer;background:#2463df;color:white;margin-right:10px}button:disabled{opacity:.5}#deny{background:#eaf0f7;color:#334963}small{color:#687b90}#status{min-height:30px}</style></head>
+<body><main><h1>确认本次人脸采集</h1><p>网页请求使用这台电脑的摄像头进行动作检测，并将抓拍照片返回给发起请求的网页。</p><p><strong>仅在你刚刚主动点击了“采集人脸”时允许。</strong></p><p id="details">正在读取请求…</p><button id="allow" disabled>允许本次采集</button><button id="deny" disabled>拒绝</button><p id="status" role="status"></p><small>本次授权仅适用于当前任务。后台程序不会弹出摄像头窗口，请回到业务网页查看预览。</small></main>
+<script>
+const sid=new URLSearchParams(location.search).get('session');let nonce;
+const $=id=>document.getElementById(id);
+const names={blink:'眨眼',mouth:'张嘴',turn_left:'向左转头',turn_right:'向右转头'};
+async function load(){try{if(!/^[a-f0-9]{32}$/.test(sid||''))throw new Error('无效的采集请求');const r=await fetch('/consent/'+sid,{cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d.message);nonce=d.nonce;$('details').textContent='检测动作：'+d.actions.map(a=>names[a]).join('、')+'；摄像头 '+d.cameraIndex;$('allow').disabled=$('deny').disabled=false;}catch(e){$('details').textContent=e.message;}}
+async function decide(allow){$('allow').disabled=$('deny').disabled=true;try{const r=await fetch('/consent/'+sid,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nonce,allow})});const d=await r.json();if(!r.ok)throw new Error(d.message);$('status').textContent=allow?'已允许，请返回业务页面完成动作。':'已拒绝，可以关闭此页面。';}catch(e){$('status').textContent=e.message;}}
+$('allow').onclick=()=>decide(true);$('deny').onclick=()=>decide(false);load();
+</script></body></html>

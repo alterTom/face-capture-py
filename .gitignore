@@ -1,0 +1,11 @@
+.venv/
+.tools/
+.cache/
+build/
+dist/
+__pycache__/
+*.pyc
+.pytest_cache/
+test-output/
+models/*.task
+node_modules/
